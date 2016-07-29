@@ -1,12 +1,12 @@
 /*
  * angular-tooltips
- * 1.0.8
+ * 1.1.4
  * 
  * Angular.js tooltips module.
  * http://720kb.github.io/angular-tooltips
  * 
  * MIT license
- * Thu Mar 24 2016
+ * Mon Jun 06 2016
  */
 /*global angular,window*/
 (function withAngular(angular, window) {
@@ -31,9 +31,12 @@
           window.console.log('Skipped!');
         }
       }
+      , resizeTimeout
       , resize = function resize() {
-
-        window.requestAnimationFrame(runCallbacks);
+        window.clearTimeout(resizeTimeout);
+        resizeTimeout = window.setTimeout(function onResizeTimeout() {
+          window.requestAnimationFrame(runCallbacks);
+        }, 500);
       }
       , addCallback = function addCallback(callback) {
 
@@ -51,6 +54,12 @@
           window.addEventListener('resize', resize);
         }
         addCallback(callback);
+      },
+      'remove': function remove() {
+        if (!callbacks.length) {
+          window.clearTimeout(resizeTimeout);
+          window.removeEventListener('resize', resize);
+        }
       }
     };
   }())
@@ -238,7 +247,7 @@
       if ($attrs.tooltipTemplate &&
         $attrs.tooltipTemplateUrl) {
 
-        throw new Error('You can not define tooltip-template and tooltip-url together');
+        throw new Error('You can not define tooltip-template and tooltip-template-url together');
       }
 
       if (!($attrs.tooltipTemplateUrl || $attrs.tooltipTemplate) &&
@@ -288,6 +297,7 @@
             }
           }
           , onTooltipShow = function onTooltipShow(event) {
+
             tipElement.addClass('_hidden');
             if ($attrs.tooltipSmart) {
 
@@ -469,8 +479,8 @@
               paddingLeftValue = window.parseInt(tipElementStyle.getPropertyValue('padding-left'), 10);
               paddingRightValue = window.parseInt(tipElementStyle.getPropertyValue('padding-right'), 10);
 
-              tipCssToSet.top = tipElementBoundingClientRect.top + window.scrollY + 'px';
-              tipCssToSet.left = tipElementBoundingClientRect.left + window.scrollX + 'px';
+              tipCssToSet.top = tipElementBoundingClientRect.top + window.pageYOffset + 'px';
+              tipCssToSet.left = tipElementBoundingClientRect.left + window.pageXOffset + 'px';
               tipCssToSet.height = tipElementBoundingClientRect.height - (paddingTopValue + paddingBottomValue) + 'px';
               tipCssToSet.width = tipElementBoundingClientRect.width - (paddingLeftValue + paddingRightValue) + 'px';
 
@@ -549,14 +559,18 @@
           , onTooltipTemplateChange = function onTooltipTemplateChange(newValue) {
 
             if (newValue) {
-
+              tooltipElement.removeClass('_force-hidden'); //see lines below, this forces to hide tooltip when is empty
               tipTipElement.empty();
               tipTipElement.append(closeButtonElement);
               tipTipElement.append(newValue);
-              $timeout(function doLater() {
+              $timeout(function doLaterShow() {
 
                 onTooltipShow();
               });
+            } else {
+              //hide tooltip because is empty
+              tipTipElement.empty();
+              tooltipElement.addClass('_force-hidden'); //force to be hidden if empty
             }
           }
           , onTooltipTemplateUrlChange = function onTooltipTemplateUrlChange(newValue) {
@@ -568,6 +582,7 @@
                 if (response &&
                   response.data) {
 
+                  tooltipElement.removeClass('_force-hidden'); //see lines below, this forces to hide tooltip when is empty
                   tipTipElement.empty();
                   tipTipElement.append(closeButtonElement);
                   tipTipElement.append($compile(response.data)(scope));
@@ -577,6 +592,10 @@
                   });
                 }
               });
+            } else {
+              //hide tooltip because is empty
+              tipTipElement.empty();
+              tooltipElement.addClass('_force-hidden'); //force to be hidden if empty
             }
           }
           , onTooltipSideChange = function onTooltipSideChange(newValue) {
@@ -767,6 +786,7 @@
           unregisterOnTooltipSizeChange();
           unregisterOnTooltipSpeedChange();
           unregisterTipContentChangeWatcher();
+          resizeObserver.remove();
           element.off($attrs.tooltipShowTrigger + ' ' + $attrs.tooltipHideTrigger);
         });
       });
